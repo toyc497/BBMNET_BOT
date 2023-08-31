@@ -22,24 +22,21 @@ class BBMNET_Scraping:
 
     def setFiltrosPage(self, navegador, editalAtual_Entity):
         tempo_espera = 10
+        print('Pregão: ', editalAtual_Entity)
         WebDriverWait(navegador, tempo_espera).until(EC.presence_of_element_located((By.XPATH,"/html/body/app-root/ngx-sala-disputa/ngx-sala-disputa-layout/nb-layout/div[1]/div/div/div/div/nb-layout-column/ngx-home/div[2]/div/nb-card/div/nb-card-header/div/button"))).click()
-        time.sleep(1)
         WebDriverWait(navegador, tempo_espera).until(EC.presence_of_element_located((By.XPATH,"/html/body/app-root/ngx-sala-disputa/ngx-sala-disputa-layout/nb-layout/div[1]/div/div/div/div/nb-layout-column/ngx-home/div[2]/div/nb-card/div/nb-accordion/nb-accordion-item/nb-accordion-item-body/div/div/form/div[2]/div[1]/nb-form-field/div/input"))).send_keys(editalAtual_Entity.orgao)
-        time.sleep(1)
         WebDriverWait(navegador, tempo_espera).until(EC.presence_of_element_located((By.XPATH,"/html/body/app-root/ngx-sala-disputa/ngx-sala-disputa-layout/nb-layout/div[2]/div/div/nb-option-list/ul/nb-option"))).click()
 
         WebDriverWait(navegador, tempo_espera).until(EC.presence_of_element_located((By.XPATH,"/html/body/app-root/ngx-sala-disputa/ngx-sala-disputa-layout/nb-layout/div[1]/div/div/div/div/nb-layout-column/ngx-home/div[2]/div/nb-card/div/nb-accordion/nb-accordion-item/nb-accordion-item-body/div/div/form/div[2]/div[2]/nb-form-field/div/input"))).send_keys(editalAtual_Entity.chaveEdital)
-        time.sleep(1)
         WebDriverWait(navegador, tempo_espera).until(EC.presence_of_element_located((By.XPATH,"/html/body/app-root/ngx-sala-disputa/ngx-sala-disputa-layout/nb-layout/div[2]/div/div/nb-option-list/ul/nb-option"))).click()
 
         WebDriverWait(navegador, tempo_espera).until(EC.presence_of_element_located((By.XPATH,"/html/body/app-root/ngx-sala-disputa/ngx-sala-disputa-layout/nb-layout/div[1]/div/div/div/div/nb-layout-column/ngx-home/div[2]/div/nb-card/div/nb-accordion/nb-accordion-item/nb-accordion-item-body/div/div/form/div[2]/div[3]/nb-form-field/div/input"))).send_keys(editalAtual_Entity.lote)
-        time.sleep(1)
         WebDriverWait(navegador, tempo_espera).until(EC.presence_of_element_located((By.XPATH,"/html/body/app-root/ngx-sala-disputa/ngx-sala-disputa-layout/nb-layout/div[1]/div/div/div/div/nb-layout-column/ngx-home/div[2]/div/nb-card/div/nb-accordion/nb-accordion-item/nb-accordion-item-body/div/div/form/div[3]/div[1]/nb-form-field/div[2]/nb-select/button"))).click()
-        time.sleep(1)
         WebDriverWait(navegador, tempo_espera).until(EC.presence_of_element_located((By.XPATH,"/html/body/app-root/ngx-sala-disputa/ngx-sala-disputa-layout/nb-layout/div[1]/div/div/div/div/nb-layout-column/ngx-home/div[2]/div/nb-card/div/nb-accordion/nb-accordion-item/nb-accordion-item-body/div/div/form/div[4]/div/button[2]"))).click()
 
     def findChatAba(self, navegador, editalAtual_Entity):
         tempo_espera = 10
+        time.sleep(3)
         repeticoes = 1
 
         while repeticoes < 13:

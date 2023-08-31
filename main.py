@@ -3,7 +3,10 @@ import json
 from datetime import datetime
 
 from selenium import webdriver
+from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+
 from BotScraping.BBMNET_Scraping import BBMNET_Scraping
 from WebsocketConnect.Websockets_Connection import Websockets_Connection
 from models.CredencialEntity import CredencialEntity
@@ -60,9 +63,9 @@ class Main:
             responsePost_API = requests.post(urlPostMessage_API, json=mensagemToDatabase_API, headers=headers)
 
             if responsePost_API.status_code == 200 or responsePost_API.status_code == 201:
-                print(responsePost_API.text)
+                print('Inserted: ',responsePost_API.text)
             else:
-                print('erro',responsePost_API.text)
+                print('erro: ',responsePost_API.text)
 
             mensagem_scraping = {
                 "idEdital": messagesList[counter]['idEdital'],
@@ -117,7 +120,8 @@ class Main:
         chrome_options.add_argument('--no-sandbox')
         chrome_options.add_argument('--window-size=1920,1080')
 
-        navegador = webdriver.Chrome(options=chrome_options)
+        servico = Service(ChromeDriverManager().install())
+        navegador = webdriver.Chrome(options=chrome_options, service=servico)
         navegador.implicitly_wait(10)
         scraping_client.loginToGuiaPage(navegador, credencialAtual_Entity)
 
@@ -141,9 +145,10 @@ class Main:
 
             navegador.close()
             navegador.switch_to.window(guiaPage_window_handles[0])
-            messagesListInverted = messagesList[::-1]
-            messagesToSend = self.compareDates(messagesListInverted, counter)
-            self.websocket_client(messagesToSend, editalAtual_Entity, credencialAtual_Entity)
+            if messagesList != None:
+                messagesListInverted = messagesList[::-1]
+                messagesToSend = self.compareDates(messagesListInverted, counter)
+                self.websocket_client(messagesToSend, editalAtual_Entity, credencialAtual_Entity)
             counter += 1
 
 if __name__ == '__main__':
