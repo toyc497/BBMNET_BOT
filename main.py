@@ -120,8 +120,10 @@ class Main:
         chrome_options.add_argument('--no-sandbox')
         chrome_options.add_argument('--window-size=1920,1080')
 
-        servico = Service(ChromeDriverManager().install())
-        navegador = webdriver.Chrome(options=chrome_options, service=servico)
+        service = Service()
+        options = webdriver.ChromeOptions()
+        navegador = webdriver.Chrome(service=service, options=options)
+
         navegador.implicitly_wait(10)
         scraping_client.loginToGuiaPage(navegador, credencialAtual_Entity)
 
