@@ -25,8 +25,21 @@ class BBMNET_Scraping:
 
         WebDriverWait(navegador, tempo_espera).until(EC.presence_of_element_located((By.XPATH,"/html/body/app-root/ngx-sala-disputa/ngx-sala-disputa-layout/nb-layout/div[1]/div/div/div/div/nb-layout-column/ngx-home/div[2]/div/nb-card/div/nb-card-header/div/button"))).click()
         WebDriverWait(navegador, tempo_espera).until(EC.presence_of_element_located((By.XPATH,"/html/body/app-root/ngx-sala-disputa/ngx-sala-disputa-layout/nb-layout/div[1]/div/div/div/div/nb-layout-column/ngx-home/div[2]/div/nb-card/div/nb-accordion/nb-accordion-item/nb-accordion-item-body/div/div/form/div[2]/div[1]/nb-form-field/div/input"))).send_keys(editalAtual_Entity.orgao)
-        WebDriverWait(navegador, tempo_espera).until(EC.presence_of_element_located((By.XPATH,"/html/body/app-root/ngx-sala-disputa/ngx-sala-disputa-layout/nb-layout/div[2]/div/div/nb-option-list/ul/nb-option"))).click()
+        orgaoElementsList = navegador.find_element(By.CLASS_NAME, "option-list")
+        orgaoElements = orgaoElementsList.find_elements(By.TAG_NAME, 'nb-option')
+
+        tagOrgaosIndex = '/html/body/app-root/ngx-sala-disputa/ngx-sala-disputa-layout/nb-layout/div[2]/div/div/nb-option-list/ul/nb-option'
+
+        if len(orgaoElements) != 1:
+            couterOrgaosList = 1
+            for orgaoItem in orgaoElements:
+                if orgaoItem.text.strip() == editalAtual_Entity.orgao:
+                    tagOrgaosIndex = f'/html/body/app-root/ngx-sala-disputa/ngx-sala-disputa-layout/nb-layout/div[2]/div/div/nb-option-list/ul/nb-option[{couterOrgaosList}]'
+                couterOrgaosList += 1
+
+        WebDriverWait(navegador, tempo_espera).until(EC.presence_of_element_located((By.XPATH,f'{tagOrgaosIndex}'))).click()
         time.sleep(3)
+
         WebDriverWait(navegador, tempo_espera).until(EC.presence_of_element_located((By.XPATH,"/html/body/app-root/ngx-sala-disputa/ngx-sala-disputa-layout/nb-layout/div[1]/div/div/div/div/nb-layout-column/ngx-home/div[2]/div/nb-card/div/nb-accordion/nb-accordion-item/nb-accordion-item-body/div/div/form/div[2]/div[2]/nb-form-field/div/input"))).send_keys(editalAtual_Entity.chaveEdital)
         WebDriverWait(navegador, tempo_espera).until(EC.presence_of_element_located((By.XPATH,"/html/body/app-root/ngx-sala-disputa/ngx-sala-disputa-layout/nb-layout/div[2]/div/div/nb-option-list/ul/nb-option"))).click()
         time.sleep(3)
