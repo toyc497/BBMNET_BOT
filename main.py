@@ -3,7 +3,6 @@ import json
 from datetime import datetime
 
 from selenium import webdriver
-from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 
@@ -16,35 +15,96 @@ import requests
 
 class Main:
 
-    editaisObjectsResponse = None
-    credenciaisObjectsResponse = None
     editaisBBMNET_Entity = []
-    credencialBBMNET_Entity = []
-    urlAPI = 'http://127.0.0.1:8085/bot/editais_to_scraping'
-    lastMessagesDates = []
-    lastDataHoraRegistered = None
+    credencialBBMNET_Entity = None
+    accessToken = ''
+
+    def getToken(self):
+        urlToken = 'https://bbmnet-cad-participantes-prd.rj.r.appspot.com/auth/realms/BBM/protocol/openid-connect/token'
+        headersToken = {'Content-Type': 'application/x-www-form-urlencoded'}
+        bodyToken = {
+            'grant_type': 'password',
+            'client_id': 'cadastro-participantes-admin-site',
+            'username': f'{self.credencialBBMNET_Entity.usuario}',
+            'password': f'{self.credencialBBMNET_Entity.senha}'
+        }
+
+        requestAuthToken = requests.post(urlToken, headers=headersToken, data=bodyToken)
+
+        if requestAuthToken.status_code == 200:
+            tokenContent = requestAuthToken.json()
+            tokenCode = tokenContent['access_token']
+            tokenBearer = f'Bearer {tokenCode}'
+            self.accessToken = tokenBearer
 
     def pregoes_API_DATA(self):
         print('Running')
-        responseAPI_plataform = requests.get(self.urlAPI)
+        urlAPI = 'http://127.0.0.1:8085/bot/editais_to_scraping'
+        credenciaisObjectsResponse = None
+        editaisObjectsResponse = None
+        responseAPI_plataform = requests.get(urlAPI)
 
         if responseAPI_plataform.status_code == 200:
             responseObjectsAPI = responseAPI_plataform.json()
-            self.editaisObjectsResponse = responseObjectsAPI['edital']
-            self.credenciaisObjectsResponse = responseObjectsAPI['credencial']
+            editaisObjectsResponse = responseObjectsAPI['edital']
+            credenciaisObjectsResponse = responseObjectsAPI['credencial']
 
-        for edital in self.editaisObjectsResponse:
+        for edital in editaisObjectsResponse:
             editalObject = EditalEntity(edital['id'], edital['chaveEdital'], edital['numeroPregao'], edital['orgao'],
-                                        edital['lote'])
+                                        edital['lote'], edital['lastMessageDate'])
             self.editaisBBMNET_Entity.append(editalObject)
 
-        for editalDate in self.editaisObjectsResponse:
-            self.lastMessagesDates.append(editalDate['lastMessageDate'])
-
-        for credencial in self.credenciaisObjectsResponse:
+        for credencial in credenciaisObjectsResponse:
             credencialObject = CredencialEntity(credencial['id'], credencial['usuario'], credencial['senha'],
                                                 credencial['sistema'])
-            self.credencialBBMNET_Entity.append(credencialObject)
+            self.credencialBBMNET_Entity = credencialObject
+
+    def searchPregaoAba(self, editalAtual_Entity):
+        uniqueIdOrgao = ''
+        abaNumber = 0
+
+        headersRequests = {
+            'Content-Type': 'application/json',
+            'Usuario-Id': '69f72adf-bb81-48b5-ae79-a937f4f0bcd2',
+            'Participante-Id': '9c73820f-0700-477b-b151-bbb7d9fcbe27',
+            'Authorization': self.accessToken
+        }
+        urlOrgaosPromotores = 'https://cadastro-participantes-backend-fm2e4c7u4q-rj.a.run.app/api/Licitacoes/orgaospromotores'
+        responseOrgaos = requests.get(urlOrgaosPromotores, headers=headersRequests)
+
+        if responseOrgaos.status_code == 200:
+            orgaosList = responseOrgaos.json()
+            for orgao in orgaosList:
+                if orgao['nomeFantasia'] == f'{editalAtual_Entity.orgao}':
+                    uniqueIdOrgao = orgao['uniqueId']
+
+        urlAbaPregao = 'https://southamerica-east1-bbmnet-licitacoes-prd-377317.cloudfunctions.net/fastRoutes/lotes/getTabAmountCostumQuery/3'
+        bodyPregaoInfo = [
+            {
+                'description': 'Edital.NumeroEdital',
+                'value': f'{editalAtual_Entity.chaveEdital}', 'clausula': '=='
+            },
+            {
+                'description': 'Edital.OrgaoPromotor.Id',
+                'value': uniqueIdOrgao,
+                'clausula': '=='
+            },
+            {
+                'description': 'Numero',
+                'value': editalAtual_Entity.lote, 'clausula': '=='
+            }
+        ]
+
+        responseAbaPregao = requests.post(urlAbaPregao, json=bodyPregaoInfo, headers=headersRequests)
+        if responseAbaPregao.status_code == 200:
+            listaAbas = responseAbaPregao.json()
+            counter = 1
+            while counter <= len(listaAbas):
+                if listaAbas[f'{counter}'] == 1:
+                    abaNumber = counter
+                counter += 1
+
+        return abaNumber
 
     def websocket_client(self, messagesList, editalAtual_Entity, credencialAtual_Entity):
 
@@ -54,9 +114,9 @@ class Main:
         while counter < len(messagesList):
 
             mensagemToDatabase_API = {
-                "origem": messagesList[counter]['origem'],
+                "origem": messagesList[counter]['origem'].split(" -")[0],
                 "dataHora": messagesList[counter]['dataHora'],
-                "conteudo": messagesList[counter]['conteudo'],
+                "conteudo": messagesList[counter]['conteudo'].strip(),
                 "idEdital": messagesList[counter]['idEdital']
             }
             headers = {'Content-Type': 'application/json'}
@@ -69,8 +129,8 @@ class Main:
 
             mensagem_scraping = {
                 "idEdital": messagesList[counter]['idEdital'],
-                "conteudo": messagesList[counter]['conteudo'],
-                "origem": messagesList[counter]['origem'],
+                "conteudo": messagesList[counter]['conteudo'].strip(),
+                "origem": messagesList[counter]['origem'].split(" -")[0],
                 "dataHora": messagesList[counter]['dataHora'],
                 "orgao": editalAtual_Entity.orgao,
                 "lote": editalAtual_Entity.lote,
@@ -85,38 +145,32 @@ class Main:
             asyncio.get_event_loop().run_until_complete(Websockets_Connection().listen(mensagem_converted))
             counter += 1
 
-    def compareDates(self, messagesList, indicePregaoList):
-        dataDeComparacao = self.lastMessagesDates[indicePregaoList]
-        messagesToSend_compared = []
+    def compareDates(self, messagesList, editalAtual):
+        messagesToSendList = []
+
         for mensagem in messagesList:
-            dataHoraBBMNET = mensagem['dataHora']
-            dataFormated = ""
-            counter = 0
-            while counter < len(dataHoraBBMNET):
-                if dataHoraBBMNET[counter] != '-' and dataHoraBBMNET[counter] != ' ':
-                    dataFormated += str(dataHoraBBMNET[counter])
-                counter += 1
-            dh_ObjectFormated = datetime.strptime(dataFormated, '%d/%m/%Y|%H:%M:%S')
+            lastDataHoraAPI = None
+            dataHoraSeparada = mensagem['dataHora'].strip().split(" ")
+            dataSeparada = dataHoraSeparada[0].split("/")
+            dtHrToConvert = f'{dataSeparada[2]}-{dataSeparada[1]}-{dataSeparada[0]} {dataHoraSeparada[1]}'
 
-            #dh_ObjectFormated -> data hora convertida da mensagem do robo
-            #dataDeComparacao -> data e hora da ultima mensagem registrada
-            if dataDeComparacao != None:
-                self.lastDataHoraRegistered = datetime.strptime(dataDeComparacao, '%Y-%m-%d %H:%M:%S')
+            dataHoraBBMNET = datetime.strptime(dtHrToConvert, '%Y-%m-%d %H:%M:%S')
 
-            if self.lastDataHoraRegistered == None or dh_ObjectFormated > self.lastDataHoraRegistered:
-                mensagem['dataHora'] = f"{dh_ObjectFormated}"
-                messagesToSend_compared.append(mensagem)
-                convertDataToStringAgain = dh_ObjectFormated.strftime('%Y-%m-%d %H:%M:%S')
-                self.lastMessagesDates[indicePregaoList] = convertDataToStringAgain
+            if editalAtual.lastMessageDate != None:
+                lastDataHoraAPI = datetime.strptime(editalAtual.lastMessageDate, '%Y-%m-%d %H:%M:%S')
 
-        return messagesToSend_compared
+            if lastDataHoraAPI == None or dataHoraBBMNET > lastDataHoraAPI:
+                mensagem['dataHora'] = f"{dataHoraBBMNET}"
+                messagesToSendList.append(mensagem)
+                editalAtual.lastMessageDate = f"{dataHoraBBMNET}"
+
+        return messagesToSendList
 
     def webscraping_execute(self):
         scraping_client = BBMNET_Scraping()
-        credencialAtual_Entity = self.credencialBBMNET_Entity[0]
 
         chrome_options = Options()
-        #chrome_options.add_argument('--headless')
+        chrome_options.add_argument('--headless')
         chrome_options.add_argument('--no-sandbox')
         chrome_options.add_argument('--window-size=1920,1080')
 
@@ -125,7 +179,7 @@ class Main:
         navegador = webdriver.Chrome(service=service, options=options)
 
         navegador.implicitly_wait(10)
-        scraping_client.loginToGuiaPage(navegador, credencialAtual_Entity)
+        scraping_client.loginToGuiaPage(navegador, self.credencialBBMNET_Entity)
 
         editaisEntitySize = len(self.editaisBBMNET_Entity)
         counter = 0
@@ -141,19 +195,22 @@ class Main:
             editalAtual_Entity = self.editaisBBMNET_Entity[counter]
             navegador.switch_to.window(guiaPage_window_handles[1])
 
+            abaIndexBBMNET = self.searchPregaoAba(editalAtual_Entity)
+
             scraping_client.setFiltrosPage(navegador, editalAtual_Entity)
 
-            messagesList = scraping_client.findChatAba(navegador, editalAtual_Entity)
+            messagesList = scraping_client.findChatAba(navegador, editalAtual_Entity, abaIndexBBMNET)
 
             navegador.close()
             navegador.switch_to.window(guiaPage_window_handles[0])
+
             if messagesList != None:
-                messagesListInverted = messagesList[::-1]
-                messagesToSend = self.compareDates(messagesListInverted, counter)
-                self.websocket_client(messagesToSend, editalAtual_Entity, credencialAtual_Entity)
+                messagesToSend = self.compareDates(messagesList, editalAtual_Entity)
+                self.websocket_client(messagesToSend, editalAtual_Entity, self.credencialBBMNET_Entity)
             counter += 1
 
 if __name__ == '__main__':
     main = Main()
     main.pregoes_API_DATA()
+    main.getToken()
     main.webscraping_execute()
