@@ -106,12 +106,13 @@ class Main:
 
         return abaNumber
 
-    def websocket_client(self, messagesList, editalAtual_Entity, credencialAtual_Entity):
+    def websocket_client(self, messagesList):
 
         urlPostMessage_API = 'http://127.0.0.1:8085/mensagem/save'
 
         counter = 0
         while counter < len(messagesList):
+            mensagem_scraping = None
 
             mensagemToDatabase_API = {
                 "origem": messagesList[counter]['origem'].split(" -")[0],
@@ -123,24 +124,11 @@ class Main:
             responsePost_API = requests.post(urlPostMessage_API, json=mensagemToDatabase_API, headers=headers)
 
             if responsePost_API.status_code == 200 or responsePost_API.status_code == 201:
+                mensagem_scraping = responsePost_API.json()
                 print('Inserted: ',responsePost_API.text)
             else:
                 print('erro: ',responsePost_API.text)
 
-            mensagem_scraping = {
-                "idEdital": messagesList[counter]['idEdital'],
-                "conteudo": messagesList[counter]['conteudo'].strip(),
-                "origem": messagesList[counter]['origem'].split(" -")[0],
-                "dataHora": messagesList[counter]['dataHora'],
-                "orgao": editalAtual_Entity.orgao,
-                "lote": editalAtual_Entity.lote,
-                "chaveEdital": editalAtual_Entity.chaveEdital,
-                "numeroPregao": editalAtual_Entity.numeroPregao,
-                "sistema": {
-                    "id": credencialAtual_Entity.sistema['id'],
-                    "nome": credencialAtual_Entity.sistema['nome']
-                }
-            }
             mensagem_converted = json.dumps(mensagem_scraping, ensure_ascii=False)
             asyncio.get_event_loop().run_until_complete(Websockets_Connection().listen(mensagem_converted))
             counter += 1
@@ -183,10 +171,9 @@ class Main:
 
         editaisEntitySize = len(self.editaisBBMNET_Entity)
         counter = 0
-
-        while counter != (editaisEntitySize+1):
-            if counter == editaisEntitySize:
-                counter = 0
+        while counter < editaisEntitySize:
+            #if counter == editaisEntitySize:
+                #counter = 0
 
             print('Running')
             scraping_client.linkToHomePage(navegador)
@@ -206,11 +193,16 @@ class Main:
 
             if messagesList != None:
                 messagesToSend = self.compareDates(messagesList, editalAtual_Entity)
-                self.websocket_client(messagesToSend, editalAtual_Entity, self.credencialBBMNET_Entity)
+                self.websocket_client(messagesToSend)
             counter += 1
 
 if __name__ == '__main__':
     main = Main()
-    main.pregoes_API_DATA()
-    main.getToken()
-    main.webscraping_execute()
+    while True:
+        main.pregoes_API_DATA()
+        main.getToken()
+        main.webscraping_execute()
+        main.editaisBBMNET_Entity = []
+        main.credencialBBMNET_Entity = None
+        main.accessToken = ''
+

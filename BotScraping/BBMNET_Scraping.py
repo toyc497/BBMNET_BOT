@@ -54,13 +54,13 @@ class BBMNET_Scraping:
             EC.presence_of_element_located((By.XPATH,
                                             f"/html/body/app-root/ngx-sala-disputa/ngx-sala-disputa-layout/nb-layout/div[1]/div/div/div/div/nb-layout-column/ngx-home/div[2]/div/nb-card/div/div/nb-card-body/div/div[{abaIndexBBMNET}]"))
         ).click()
-        time.sleep(0.5)
+        time.sleep(2)
 
         WebDriverWait(navegador, 1).until(
             EC.presence_of_element_located((By.XPATH,
                                             f"/html/body/app-root/ngx-sala-disputa/ngx-sala-disputa-layout/nb-layout/div[1]/div/div/div/div/nb-layout-column/ngx-home/div[2]/div/nb-card/ngx-lista-itens/div[2]/div/div"))
         ).click()
-        time.sleep(1)
+        time.sleep(2)
 
         soup = BeautifulSoup(navegador.page_source, 'html.parser')
         mensagens = soup.find_all("span", class_=["chat_date", "chat_msg", "chat_perfil", "chat_perfil_Autoridade","chat_perfil_sistema"])
