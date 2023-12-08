@@ -164,7 +164,7 @@ class Main:
 
         service = Service()
         options = webdriver.ChromeOptions()
-        navegador = webdriver.Chrome(service=service, options=options)
+        navegador = webdriver.Chrome(options=chrome_options, service=service)
 
         navegador.implicitly_wait(10)
         scraping_client.loginToGuiaPage(navegador, self.credencialBBMNET_Entity)
@@ -172,29 +172,32 @@ class Main:
         editaisEntitySize = len(self.editaisBBMNET_Entity)
         counter = 0
         while counter < editaisEntitySize:
-            #if counter == editaisEntitySize:
-                #counter = 0
+            try:
+                print('Running')
+                scraping_client.linkToHomePage(navegador)
+                guiaPage_window_handles = navegador.window_handles
 
-            print('Running')
-            scraping_client.linkToHomePage(navegador)
-            guiaPage_window_handles = navegador.window_handles
+                editalAtual_Entity = self.editaisBBMNET_Entity[counter]
+                navegador.switch_to.window(guiaPage_window_handles[1])
 
-            editalAtual_Entity = self.editaisBBMNET_Entity[counter]
-            navegador.switch_to.window(guiaPage_window_handles[1])
+                abaIndexBBMNET = self.searchPregaoAba(editalAtual_Entity)
 
-            abaIndexBBMNET = self.searchPregaoAba(editalAtual_Entity)
+                scraping_client.setFiltrosPage(navegador, editalAtual_Entity)
 
-            scraping_client.setFiltrosPage(navegador, editalAtual_Entity)
+                messagesList = scraping_client.findChatAba(navegador, editalAtual_Entity, abaIndexBBMNET)
 
-            messagesList = scraping_client.findChatAba(navegador, editalAtual_Entity, abaIndexBBMNET)
+                navegador.close()
+                navegador.switch_to.window(guiaPage_window_handles[0])
 
-            navegador.close()
-            navegador.switch_to.window(guiaPage_window_handles[0])
-
-            if messagesList != None:
-                messagesToSend = self.compareDates(messagesList, editalAtual_Entity)
-                self.websocket_client(messagesToSend)
-            counter += 1
+                if messagesList != None:
+                    messagesToSend = self.compareDates(messagesList, editalAtual_Entity)
+                    self.websocket_client(messagesToSend)
+                counter += 1
+            except:
+                print("Erro ao fazer scraping no pregão: "+editalAtual_Entity.chaveEdital)
+                navegador.close()
+                navegador.switch_to.window(guiaPage_window_handles[0])
+                counter += 1
 
 if __name__ == '__main__':
     main = Main()
