@@ -8,6 +8,7 @@ from selenium.webdriver.chrome.service import Service
 
 from BotScraping.BBMNET_Scraping import BBMNET_Scraping
 from WebsocketConnect.Websockets_Connection import Websockets_Connection
+from environment.environment import Environment
 from models.CredencialEntity import CredencialEntity
 from models.EditalEntity import EditalEntity
 import requests
@@ -18,6 +19,36 @@ class Main:
     editaisBBMNET_Entity = []
     credencialBBMNET_Entity = None
     accessToken = ''
+    accesTokenKeycloak = ''
+    refreshTokenKeycloak = ''
+
+    def getKeycloakAcessToken(self):
+
+        urlToken = Environment.keycloakUriLogin
+        headersToken = {'Content-Type': 'application/x-www-form-urlencoded'}
+        bodyToken = {
+            'client_id': Environment.keycloak_clientId,
+            'username': Environment.keycloak_username,
+            'password': Environment.keycloak_password,
+            'grant_type': Environment.keycloak_grantType
+        }
+
+        requestAuthToken = requests.post(urlToken, headers=headersToken, data=bodyToken)
+
+        if requestAuthToken.status_code == 200:
+            tokenPayload = requestAuthToken.json()
+            getAccessToken = tokenPayload['access_token']
+            getRefreshToken = tokenPayload['refresh_token']
+            self.accesTokenKeycloak = f'Bearer {getAccessToken}'
+            self.refreshTokenKeycloak = f'{getRefreshToken}'
+
+    def logoutKeycloak(self):
+        headersToken = {'Authorization': f'{self.accesTokenKeycloak}', 'Content-Type': 'application/x-www-form-urlencoded'}
+        bodyToken = {
+            'client_id': Environment.keycloak_clientId,
+            'refresh_token': self.refreshTokenKeycloak
+        }
+        requests.post(Environment.keycloakUriLogout, headers=headersToken, data=bodyToken)
 
     def getToken(self):
         urlToken = 'https://bbmnet-cad-participantes-prd.rj.r.appspot.com/auth/realms/BBM/protocol/openid-connect/token'
@@ -40,9 +71,10 @@ class Main:
     def pregoes_API_DATA(self):
         print('Running')
         urlAPI = 'http://127.0.0.1:8085/bot/editais_to_scraping'
+        headersToken = {'Authorization': f'{self.accesTokenKeycloak}'}
         credenciaisObjectsResponse = None
         editaisObjectsResponse = None
-        responseAPI_plataform = requests.get(urlAPI)
+        responseAPI_plataform = requests.get(urlAPI, headers=headersToken)
 
         if responseAPI_plataform.status_code == 200:
             responseObjectsAPI = responseAPI_plataform.json()
@@ -120,7 +152,7 @@ class Main:
                 "conteudo": messagesList[counter]['conteudo'].strip(),
                 "idEdital": messagesList[counter]['idEdital']
             }
-            headers = {'Content-Type': 'application/json'}
+            headers = {'Content-Type': 'application/json', 'Authorization': f'{self.accesTokenKeycloak}'}
             responsePost_API = requests.post(urlPostMessage_API, json=mensagemToDatabase_API, headers=headers)
 
             if responsePost_API.status_code == 200 or responsePost_API.status_code == 201:
@@ -130,7 +162,7 @@ class Main:
                 print('erro: ',responsePost_API.text)
 
             mensagem_converted = json.dumps(mensagem_scraping, ensure_ascii=False)
-            asyncio.get_event_loop().run_until_complete(Websockets_Connection().listen(mensagem_converted))
+            asyncio.get_event_loop().run_until_complete(Websockets_Connection().listen([self.accesTokenKeycloak, mensagem_converted]))
             counter += 1
 
     def compareDates(self, messagesList, editalAtual):
@@ -163,9 +195,9 @@ class Main:
         chrome_options.add_argument('--window-size=1920,1080')
 
         service = Service()
-        options = webdriver.ChromeOptions()
+        #options = webdriver.ChromeOptions()
         navegador = webdriver.Chrome(options=chrome_options, service=service)
-
+        #chrome_options
         navegador.implicitly_wait(10)
         scraping_client.loginToGuiaPage(navegador, self.credencialBBMNET_Entity)
 
@@ -202,10 +234,13 @@ class Main:
 if __name__ == '__main__':
     main = Main()
     while True:
+        main.getKeycloakAcessToken()
         main.pregoes_API_DATA()
         main.getToken()
         main.webscraping_execute()
         main.editaisBBMNET_Entity = []
         main.credencialBBMNET_Entity = None
         main.accessToken = ''
-
+        main.logoutKeycloak()
+        main.accesTokenKeycloak = ''
+        main.refreshTokenKeycloak = ''

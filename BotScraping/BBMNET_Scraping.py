@@ -54,7 +54,7 @@ class BBMNET_Scraping:
             EC.presence_of_element_located((By.XPATH,
                                             f"/html/body/app-root/ngx-sala-disputa/ngx-sala-disputa-layout/nb-layout/div[1]/div/div/div/div/nb-layout-column/ngx-home/div[2]/div/nb-card/div/div/nb-card-body/div/div[{abaIndexBBMNET}]"))
         ).click()
-        time.sleep(2)
+        time.sleep(4)
 
         WebDriverWait(navegador, 1).until(
             EC.presence_of_element_located((By.XPATH,
