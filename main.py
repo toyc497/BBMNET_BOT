@@ -134,6 +134,7 @@ class Main:
             while counter <= len(listaAbas):
                 if listaAbas[f'{counter}'] == 1:
                     abaNumber = counter
+                    break
                 counter += 1
 
         return abaNumber
@@ -157,12 +158,13 @@ class Main:
 
             if responsePost_API.status_code == 200 or responsePost_API.status_code == 201:
                 mensagem_scraping = responsePost_API.json()
+                mensagem_converted = json.dumps(mensagem_scraping, ensure_ascii=False)
+                asyncio.get_event_loop().run_until_complete(
+                    Websockets_Connection().listen([self.accesTokenKeycloak, mensagem_converted]))
                 print('Inserted: ',responsePost_API.text)
             else:
                 print('erro: ',responsePost_API.text)
 
-            mensagem_converted = json.dumps(mensagem_scraping, ensure_ascii=False)
-            asyncio.get_event_loop().run_until_complete(Websockets_Connection().listen([self.accesTokenKeycloak, mensagem_converted]))
             counter += 1
 
     def compareDates(self, messagesList, editalAtual):
